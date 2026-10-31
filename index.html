@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>渔船航期记账与经营分析工具</title>
+<style>
+:root{
+  --bg:#0f172a; --panel:#1e293b; --panel2:#273449; --line:#334155;
+  --text:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; --accent2:#22d3ee;
+  --green:#34d399; --red:#f87171; --amber:#fbbf24; --violet:#a78bfa;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.5}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea{font-family:inherit;font-size:14px;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+
+header{position:sticky;top:0;z-index:50;background:rgba(15,23,42,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:0 20px;display:flex;align-items:center;gap:16px;height:60px}
+.logo{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.logo .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+nav{display:flex;gap:4px;flex:1;overflow-x:auto}
+nav button{background:transparent;border:none;color:var(--muted);padding:8px 14px;border-radius:8px;font-size:14px;white-space:nowrap}
+nav button.active{background:var(--panel2);color:var(--text)}
+nav button:hover{color:var(--text)}
+
+main{max-width:1200px;margin:0 auto;padding:24px 20px 80px}
+.page{display:none}
+.page.active{display:block;animation:fade .25s}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+h2{font-size:20px;margin-bottom:4px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:20px}
+.row{display:flex;gap:14px;flex-wrap:wrap}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+.card h3{font-size:14px;color:var(--muted);font-weight:600;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card h3 .badge{font-size:11px;padding:2px 8px;border-radius:20px;background:var(--panel2);color:var(--muted)}
+
+/* KPI cards */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.kpi .label{font-size:12px;color:var(--muted);margin-bottom:6px}
+.kpi .value{font-size:24px;font-weight:700;letter-spacing:.3px}
+.kpi .hint{font-size:11px;margin-top:4px}
+.kpi.green .value{color:var(--green)}
+.kpi.red .value{color:var(--red)}
+.kpi.blue .value{color:var(--accent)}
+.kpi.amber .value{color:var(--amber)}
+.kpi.violet .value{color:var(--violet)}
+
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:600;font-size:12px;white-space:nowrap}
+tr:hover td{background:rgba(56,189,248,.04)}
+.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.actions{display:flex;gap:6px;justify-content:flex-end}
+.iconbtn{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:3px 8px;font-size:12px}
+.iconbtn:hover{color:var(--text);border-color:var(--muted)}
+
+/* buttons */
+.btn{background:var(--accent);color:#06283a;border:none;border-radius:8px;padding:9px 16px;font-size:14px;font-weight:600}
+.btn:hover{filter:brightness(1.08)}
+.btn.ghost{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+.btn.ghost:hover{border-color:var(--muted)}
+.btn.danger{background:transparent;color:var(--red);border:1px solid var(--red)}
+.btn.danger:hover{background:rgba(248,113,113,.1)}
+.btn.sm{padding:5px 10px;font-size:12.5px;border-radius:6px}
+.btn.warn{background:var(--amber);color:#422006}
+
+/* form */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.form-grid .full{grid-column:1/-1}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+.modal-bg.show{display:flex}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;width:100%;max-width:560px;max-height:90vh;overflow-y:auto}
+.modal h3{margin-bottom:16px}
+
+/* charts */
+.chart-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.donut{position:relative;width:150px;height:150px;flex-shrink:0}
+.donut svg{transform:rotate(-90deg)}
+.donut .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.legend{flex:1;min-width:160px}
+.legend .item{display:flex;align-items:center;gap:8px;font-size:13px;padding:4px 0}
+.legend .sw{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+.legend .nm{flex:1;color:var(--muted)}
+.legend .vl{font-weight:600;font-variant-numeric:tabular-nums}
+.bars{display:flex;flex-direction:column;gap:10px}
+.bar-row{display:flex;align-items:center;gap:10px;font-size:13px}
+.bar-row .lbl{width:70px;color:var(--muted);text-align:right;flex-shrink:0}
+.bar-track{flex:1;height:20px;background:var(--panel2);border-radius:6px;overflow:hidden}
+.bar-fill{height:100%;border-radius:6px;transition:width .5s}
+.bar-row .val{width:100px;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0}
+
+/* AI */
+.ai-box{background:linear-gradient(135deg,#1e293b,#16233a);border:1px solid var(--line);border-radius:14px;padding:20px}
+.ai-box h3{color:var(--accent2)}
+.ai-body{white-space:pre-wrap;font-size:14px;line-height:1.7;color:#cbd5e1}
+.ai-body b{color:var(--text)}
+.risk{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;margin:2px 4px 2px 0}
+.risk.low{background:rgba(52,211,153,.15);color:var(--green)}
+.risk.mid{background:rgba(251,191,36,.15);color:var(--amber)}
+.risk.high{background:rgba(248,113,113,.15);color:var(--red)}
+
+.empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:14px}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;background:var(--panel2);color:var(--muted)}
+.tag.on{background:rgba(52,211,153,.15);color:var(--green)}
+.tag.off{background:rgba(148,163,184,.12);color:var(--muted)}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--accent);color:var(--text);padding:10px 18px;border-radius:10px;z-index:200;display:none;font-size:14px}
+.toast.show{display:block;animation:fade .2s}
+
+.mt{margin-top:16px}.mb{margin-bottom:16px}
+.mono{font-variant-numeric:tabular-nums}
+.hint-line{font-size:12px;color:var(--muted)}
+.flex{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.spacer{flex:1}
+.section-title{font-size:15px;font-weight:700;margin:24px 0 12px;color:var(--text);display:flex;align-items:center;gap:8px}
+.section-title::before{content:"";width:4px;height:16px;background:var(--accent);border-radius:2px}
+
+/* ============ 移动端适配 ============ */
+@media (max-width:640px){
+  body{font-size:14px}
+  header{height:52px;padding:0 10px;gap:10px}
+  .logo{font-size:15px}
+  nav button{padding:6px 10px;font-size:13px}
+  main{padding:16px 12px 70px}
+  h2{font-size:17px}
+  .kpis{grid-template-columns:1fr 1fr;gap:10px}
+  .kpi{padding:12px}
+  .kpi .value{font-size:19px}
+  .grid2,.grid3{grid-template-columns:1fr}
+  .card{padding:14px}
+  /* 表格横向滚动 */
+  .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -14px;padding:0 14px}
+  table{font-size:12.5px;min-width:520px}
+  th,td{padding:8px 8px}
+  .form-grid{grid-template-columns:1fr}
+  .modal{padding:18px;border-radius:12px}
+  .btn{padding:11px 16px;font-size:14px}
+  input,select,textarea{font-size:16px;padding:10px} /* 16px 防止 iOS 缩放 */
+  .donut{width:130px;height:130px}
+  .chart-wrap{justify-content:center}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><span class="dot"></span>渔船航期账本</div>
+  <nav id="nav"></nav>
+</header>
+
+<main>
+  <!-- 概览 -->
+  <section class="page" id="page-overview">
+    <h2>航期概览</h2>
+    <p class="sub">选择一个航期查看收支、收益率与经营分析</p>
+    <div class="flex mb" id="voyagePicker"></div>
+    <div class="kpis" id="kpis"></div>
+    <div class="grid2 mb">
+      <div class="card"><h3>收支对比</h3><div class="bars" id="barChart"></div></div>
+      <div class="card"><h3>成本构成</h3><div class="chart-wrap"><div class="donut" id="donut"></div><div class="legend" id="donutLegend"></div></div></div>
+    </div>
+    <div class="grid2 mb">
+      <div class="card"><h3>鱼种销售占比</h3><div id="speciesChart"></div></div>
+      <div class="card"><h3>员工工资明细</h3><div id="wageTableWrap"></div></div>
+    </div>
+    <div class="ai-box" id="aiBox">
+      <h3>🤖 AI 经营分析</h3>
+      <div class="hint-line mb" id="aiStatus"></div>
+      <div class="ai-body" id="aiBody">请先创建航期并录入数据。</div>
+    </div>
+  </section>
+
+  <!-- 航期 -->
+  <section class="page" id="page-voyages">
+    <h2>航期管理</h2>
+    <p class="sub">每个航期代表一次出海作业（启航前采购 → 返航卖鱼结算）</p>
+    <div class="flex mb"><button class="btn" onclick="openVoyage()">＋ 新建航期</button><button class="btn ghost" onclick="exportJSON()">导出数据</button><button class="btn ghost" onclick="document.getElementById('importFile').click()">导入数据</button><input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)"></div>
+    <div class="card"><div class="table-scroll"><table><thead><tr><th>航期名称</th><th>启航日期</th><th>返航日期</th><th>天数</th><th class="num">状态</th><th></th></tr></thead><tbody id="voyageTable"></tbody></table></div></div>
+  </section>
+
+  <!-- 开销 -->
+  <section class="page" id="page-expenses">
+    <h2>采购与船上开销</h2>
+    <p class="sub">记录启航前物资采购、工具配备等各类支出</p>
+    <div class="flex mb">
+      <select id="expVoyageFilter" onchange="renderExpenses()"></select>
+      <select id="expCatFilter" onchange="renderExpenses()"><option value="">全部分类</option></select>
+      <button class="btn" onclick="openExpense()">＋ 记一笔开销</button>
+    </div>
+    <div class="card"><div class="table-scroll"><table><thead><tr><th>日期</th><th>航期</th><th>分类</th><th>说明</th><th class="num">金额</th><th></th></tr></thead><tbody id="expenseTable"></tbody></table></div></div>
+  </section>
+
+  <!-- 收益 -->
+  <section class="page" id="page-sales">
+    <h2>卖鱼收益</h2>
+    <p class="sub">返航后按鱼种、单价、重量补录卖鱼收入</p>
+    <div class="flex mb">
+      <select id="saleVoyageFilter" onchange="renderSales()"></select>
+      <button class="btn" onclick="openSale()">＋ 记一笔卖鱼</button>
+    </div>
+    <div class="card"><div class="table-scroll"><table><thead><tr><th>日期</th><th>航期</th><th>鱼种</th><th class="num">单价(元/斤)</th><th class="num">重量(斤)</th><th class="num">金额</th><th>备注</th><th></th></tr></thead><tbody id="saleTable"></tbody></table></div></div>
+  </section>
+
+  <!-- 员工 -->
+  <section class="page" id="page-staff">
+    <h2>员工与工资</h2>
+    <p class="sub">设置员工月薪；所有员工（含船长）均按月薪×航期月数结算</p>
+    <div class="flex mb"><button class="btn" onclick="openStaff()">＋ 添加员工</button></div>
+    <div class="card"><div class="table-scroll"><table><thead><tr><th>姓名</th><th>岗位</th><th class="num">月薪(元)</th><th>备注</th><th></th></tr></thead><tbody id="staffTable"></tbody></table></div></div>
+    <div class="section-title">工资结算规则</div>
+    <div class="grid2">
+      <div class="card"><h3>结算方式</h3>
+        <p class="hint-line" style="line-height:2">
+          <b style="color:var(--text)">所有员工（含船长）</b>：工资 = 月薪 × 航期月数（月数按启航/返航日期自动折算，每月按 30 天计）。<br>
+          <span style="color:var(--muted)">如需给船长设置与船员不同的月薪，直接填写对应月薪即可。</span>
+        </p>
+      </div>
+      <div class="card"><h3>预支工资</h3>
+        <p class="hint-line" style="line-height:2">员工提前预支的工资<u>单独记账、不自动抵扣</u>，结算时由管理员人工决定如何冲抵，仅作参考记录。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 预支 -->
+  <section class="page" id="page-advances">
+    <h2>预支工资记录</h2>
+    <p class="sub">记录员工提前预支的款项（单独立账）</p>
+    <div class="flex mb">
+      <select id="advVoyageFilter" onchange="renderAdvances()"></select>
+      <button class="btn" onclick="openAdvance()">＋ 记一笔预支</button>
+    </div>
+    <div class="card"><div class="table-scroll"><table><thead><tr><th>日期</th><th>员工</th><th>航期</th><th class="num">金额</th><th>备注</th><th></th></tr></thead><tbody id="advanceTable"></tbody></table></div></div>
+  </section>
+
+  <!-- 设置 -->
+  <section class="page" id="page-settings">
+    <h2>设置</h2>
+    <p class="sub">自定义分类与 AI 大模型接口</p>
+    <div class="grid2">
+      <div class="card">
+        <h3>开销分类（自定义）</h3>
+        <div class="flex mb" style="gap:8px">
+          <input id="newCatInput" placeholder="新分类名称，如：港口费用" style="flex:1">
+          <button class="btn" onclick="addCategory()">添加</button>
+        </div>
+        <div id="catList" class="flex" style="gap:8px"></div>
+      </div>
+      <div class="card">
+        <h3>AI 大模型接口（可选）</h3>
+        <p class="hint-line mb">填入后启用 AI 深度分析；不填则仅使用内置规则分析（离线可用）。支持 DeepSeek / OpenAI 兼容接口。</p>
+        <div class="form-grid">
+          <div class="full"><label>API Base URL</label><input id="apiBase" placeholder="https://api.deepseek.com/v1"></div>
+          <div class="full"><label>API Key</label><input id="apiKey" type="password" placeholder="sk-..."></div>
+          <div><label>模型名称</label><input id="apiModel" placeholder="deepseek-chat"></div>
+        </div>
+        <div class="flex mt"><button class="btn" onclick="saveSettings()">保存设置</button><button class="btn ghost" onclick="testAI()">测试连接</button></div>
+      </div>
+    </div>
+    <div class="card mt">
+      <h3>数据说明</h3>
+      <p class="hint-line" style="line-height:2">所有数据保存在本机浏览器（localStorage）中，离线可用。建议定期点击「航期管理 → 导出数据」备份为 JSON 文件；换电脑时用「导入数据」恢复。清除浏览器缓存会删除数据，请务必定期备份。</p>
+    </div>
+  </section>
+</main>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ 数据模型与存储 ============ */
+const STORE_KEY = 'fishing_ledger_v1';
+let DB = load();
+function load(){
+  const raw = localStorage.getItem(STORE_KEY);
+  if(raw){ try{ return JSON.parse(raw); }catch(e){} }
+  return {
+    voyages:[],
+    expenses:[],
+    sales:[],
+    staff:[],
+    advances:[],
+    categories:['燃料','冰/保鲜','渔具/工具','生活物资'],
+    settings:{ apiBase:'https://api.deepseek.com/v1', apiKey:'', model:'deepseek-chat' }
+  };
+}
+function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(DB)); }
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+const NAV = [
+  ['overview','概览'],
+  ['voyages','航期'],
+  ['expenses','开销'],
+  ['sales','卖鱼收益'],
+  ['staff','员工工资'],
+  ['advances','预支'],
+  ['settings','设置'],
+];
+function initNav(){
+  const nav = document.getElementById('nav');
+  nav.innerHTML = NAV.map(([id,name])=>`<button data-page="${id}">${name}</button>`).join('');
+  nav.querySelectorAll('button').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+}
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+id).classList.add('active');
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===id));
+  renderAll();
+  window.scrollTo(0,0);
+}
+
+/* ============ 工具函数 ============ */
+const fmt = n => { n=Number(n)||0; return n.toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2}); };
+const money = n => '¥'+fmt(n);
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function daysBetween(a,b){ return Math.round((new Date(b)-new Date(a))/86400000)+1; }
+function monthsOf(days){ return days/30; }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
+function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function modal(html){
+  document.getElementById('modalBody').innerHTML = html;
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal(){ document.getElementById('modalBg').classList.remove('show'); }
+document.getElementById('modalBg').addEventListener('click',e=>{ if(e.target.id==='modalBg') closeModal(); });
+
+function catOptions(sel){
+  return ['<option value="">选择分类</option>', ...DB.categories.map(c=>`<option>${esc(c)}</option>`)].join('');
+}
+function voyageOptions(sel){
+  return '<option value="">全部航期</option>'+DB.voyages.map(v=>`<option value="${v.id}">${esc(v.name)}</option>`).join('');
+}
+function staffOptions(sel){
+  return '<option value="">选择员工</option>'+DB.staff.map(s=>`<option value="${s.id}">${esc(s.name)}（${s.role==='船长'?'船长':'船员'}）</option>`).join('');
+}
+
+/* ============ 概览渲染 ============ */
+function currentVoyageId(){
+  const el = document.getElementById('voyagePicker');
+  const sel = el.querySelector('select');
+  return sel ? sel.value : '';
+}
+function renderAll(){
+  renderVoyagePicker();
+  renderVoyages();
+  renderExpenses();
+  renderSales();
+  renderStaff();
+  renderAdvances();
+  renderCategories();
+  renderOverview();
+  loadSettingsIntoForm();
+}
+function renderVoyagePicker(){
+  const el = document.getElementById('voyagePicker');
+  const cur = currentVoyageId() || (DB.voyages[0]&&DB.voyages[0].id) || '';
+  if(!DB.voyages.length){
+    el.innerHTML = '<span class="hint-line">还没有航期，请先到「航期」页新建。</span>';
+    return;
+  }
+  el.innerHTML = '<select onchange="renderOverview()">'+DB.voyages.map(v=>`<option value="${v.id}" ${v.id===cur?'selected':''}>${esc(v.name)}（${esc(v.startDate)} ~ ${esc(v.endDate)}）</option>`).join('')+'</select>';
+}
+
+function voyageData(vid){
+  const expenses = DB.expenses.filter(e=>e.voyageId===vid);
+  const sales = DB.sales.filter(s=>s.voyageId===vid);
+  const advances = DB.advances.filter(a=>a.voyageId===vid);
+  const v = DB.voyages.find(v=>v.id===vid);
+  const totalExpense = expenses.reduce((s,e)=>s+Number(e.amount),0);
+  const totalSale = sales.reduce((s,x)=>s+Number(x.amount),0);
+  const totalAdvance = advances.reduce((s,a)=>s+Number(a.amount),0);
+  const days = v?daysBetween(v.startDate,v.endDate):0;
+  const months = monthsOf(days);
+  // 工资：所有员工（含船长）均按月薪 × 航期月数结算
+  const staffWages = DB.staff.map(s=>({id:s.id,name:s.name,role:s.role,monthly:Number(s.monthlySalary||0),wage:Number(s.monthlySalary||0)*months})).filter(s=>s.monthly>0);
+  const totalWage = staffWages.reduce((s,w)=>s+w.wage,0);
+  const netProfit = totalSale - totalExpense - totalWage;
+  const profitRate = totalSale>0 ? netProfit/totalSale*100 : 0;
+  // 成本分类
+  const catMap = {};
+  expenses.forEach(e=>{ catMap[e.category]=(catMap[e.category]||0)+Number(e.amount); });
+  return {v,expenses,sales,advances,totalExpense,totalSale,totalAdvance,days,months,staffWages,totalWage,netProfit,profitRate,catMap};
+}
+
+function renderOverview(){
+  const vid = currentVoyageId();
+  if(!vid){ 
+    document.getElementById('kpis').innerHTML = '<div class="card empty" style="grid-column:1/-1">请先创建航期。</div>';
+    document.getElementById('barChart').innerHTML='';document.getElementById('donut').innerHTML='';
+    document.getElementById('donutLegend').innerHTML='';document.getElementById('speciesChart').innerHTML='';
+    document.getElementById('wageTableWrap').innerHTML='';document.getElementById('aiBody').textContent='请先创建航期。';
+    return;
+  }
+  const d = voyageData(vid);
+  const kpis = document.getElementById('kpis');
+  const rateCls = d.profitRate>=20?'green':(d.profitRate>=0?'amber':'red');
+  kpis.innerHTML = `
+    <div class="kpi blue"><div class="label">卖鱼总收入</div><div class="value">${money(d.totalSale)}</div><div class="hint">${d.sales.length} 笔记录</div></div>
+    <div class="kpi red"><div class="label">采购与开销</div><div class="value">${money(d.totalExpense)}</div><div class="hint">${d.expenses.length} 笔记录</div></div>
+    <div class="kpi violet"><div class="label">工资合计</div><div class="value">${money(d.totalWage)}</div><div class="hint">${d.staffWages.length} 名员工 · 按月薪×月数结算</div></div>
+    <div class="kpi amber"><div class="label">预支工资</div><div class="value">${money(d.totalAdvance)}</div><div class="hint">单独记账，不自动抵扣</div></div>
+    <div class="kpi ${d.netProfit>=0?'green':'red'}"><div class="label">净利润</div><div class="value">${money(d.netProfit)}</div><div class="hint">收益 − 开销 − 工资</div></div>
+    <div class="kpi ${rateCls}"><div class="label">收益率</div><div class="value">${d.profitRate.toFixed(1)}%</div><div class="hint">净利润 ÷ 收益</div></div>
+  `;
+  renderBarChart(d);
+  renderDonut(d);
+  renderSpecies(d);
+  renderWageTable(d);
+  renderAI(d);
+}
+
+function renderBarChart(d){
+  const max = Math.max(d.totalSale, d.totalExpense, d.totalWage, 1);
+  const rows = [
+    ['卖鱼收入', d.totalSale, 'var(--green)'],
+    ['开销', d.totalExpense, 'var(--red)'],
+    ['工资', d.totalWage, 'var(--violet)'],
+    ['净利润', d.netProfit, d.netProfit>=0?'var(--accent)':'var(--red)'],
+  ];
+  document.getElementById('barChart').innerHTML = rows.map(([l,v,c])=>`
+    <div class="bar-row"><span class="lbl">${l}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${Math.max(0,Math.abs(v)/max*100)}%;background:${c}"></div></div>
+    <span class="val">${money(v)}</span></div>`).join('');
+}
+
+function renderDonut(d){
+  const cats = Object.entries(d.catMap);
+  const colors = ['#38bdf8','#22d3ee','#a78bfa','#34d399','#fbbf24','#f87171','#fb7185','#e879f9','#94a3b8'];
+  const total = cats.reduce((s,[,v])=>s+v,0);
+  const el = document.getElementById('donut');
+  if(total===0){ el.innerHTML='<div class="center" style="font-size:12px;color:var(--muted)">暂无开销</div>'; document.getElementById('donutLegend').innerHTML=''; return; }
+  const r=60, c=2*Math.PI*r; let offset=0, segs='';
+  cats.forEach(([name,val],i)=>{
+    const frac = val/total;
+    const len = frac*c;
+    segs += `<circle r="${r}" cx="75" cy="75" fill="none" stroke="${colors[i%colors.length]}" stroke-width="24" stroke-dasharray="${len} ${c-len}" stroke-dashoffset="${-offset}"></circle>`;
+    offset += len;
+  });
+  el.innerHTML = `<svg width="150" height="150">${segs}</svg><div class="center"><div style="font-size:12px;color:var(--muted)">总开销</div><div style="font-weight:700">${money(total)}</div></div>`;
+  document.getElementById('donutLegend').innerHTML = cats.map(([name,val],i)=>`
+    <div class="item"><span class="sw" style="background:${colors[i%colors.length]}"></span><span class="nm">${esc(name)}</span><span class="vl">${money(val)}</span></div>`).join('');
+}
+
+function renderSpecies(d){
+  const map={};
+  d.sales.forEach(s=>{ map[s.species]=(map[s.species]||0)+Number(s.amount); });
+  const arr = Object.entries(map).sort((a,b)=>b[1]-a[1]);
+  const total = arr.reduce((s,[,v])=>s+v,0);
+  const el = document.getElementById('speciesChart');
+  if(!arr.length){ el.innerHTML='<div class="empty">暂无卖鱼记录</div>'; return; }
+  const colors=['#38bdf8','#34d399','#fbbf24','#a78bfa','#fb7185','#22d3ee'];
+  el.innerHTML = arr.map(([name,val],i)=>`
+    <div class="bar-row"><span class="lbl">${esc(name)}</span>
+    <div class="bar-track"><div class="bar-fill" style="width:${val/total*100}%;background:${colors[i%colors.length]}"></div></div>
+    <span class="val">${money(val)}（${(val/total*100).toFixed(1)}%）</span></div>`).join('');
+}
+
+function renderWageTable(d){
+  const rows = d.staffWages.map(w=>`<tr><td>${esc(w.name)}（${esc(w.role)} · ${d.months.toFixed(1)} 个月 × ${fmt(w.monthly)}）</td><td class="num">${money(w.wage)}</td></tr>`);
+  document.getElementById('wageTableWrap').innerHTML = rows.length
+    ? `<div class="table-scroll"><table><thead><tr><th>人员</th><th class="num">工资</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`
+    : '<div class="empty">请先在「员工工资」页添加员工。</div>';
+}
+
+/* ============ AI 分析 ============ */
+function renderAI(d){
+  const box = document.getElementById('aiBody');
+  const status = document.getElementById('aiStatus');
+  if(!d.v){ box.textContent='请先创建航期。'; status.textContent=''; return; }
+  // 本地规则分析
+  const findings = [];
+  const tips = [];
+  // 收益率
+  if(d.totalSale===0){ findings.push('本航期尚未录入卖鱼收益。'); }
+  else{
+    if(d.profitRate>=30){ findings.push(`收益率 ${d.profitRate.toFixed(1)}%，经营状况良好。`); }
+    else if(d.profitRate>=0){ findings.push(`收益率 ${d.profitRate.toFixed(1)}%，处于盈亏平衡点附近，需优化成本。`); }
+    else { findings.push(`本航期亏损 ${money(-d.netProfit)}（收益率 ${d.profitRate.toFixed(1)}%）。`); }
+  }
+  // 成本占比
+  if(d.totalSale>0){
+    const costRate = (d.totalExpense+d.totalWage)/d.totalSale*100;
+    findings.push(`成本占收益 ${costRate.toFixed(1)}%（开销 ${(d.totalExpense/d.totalSale*100).toFixed(1)}% ＋ 工资 ${(d.totalWage/d.totalSale*100).toFixed(1)}%）。`);
+    if(d.totalWage/d.totalSale*100 > 35) tips.push('工资占比偏高，可考虑优化员工配置或月薪水平。');
+  }
+  // 最大开销分类
+  const topCat = Object.entries(d.catMap).sort((a,b)=>b[1]-a[1])[0];
+  if(topCat && topCat[1]>0){
+    const share = d.totalExpense>0 ? topCat[1]/d.totalExpense*100 : 0;
+    findings.push(`最大开销类别为「${topCat[0]}」，占开销总额 ${share.toFixed(1)}%（${money(topCat[1])}）。`);
+    if(share>50) tips.push(`「${topCat[0]}」开销占比过半，建议核查采购渠道或用量，寻找议价/替代方案。`);
+  }
+  // 鱼种
+  const speciesMap={}; d.sales.forEach(s=>speciesMap[s.species]=(speciesMap[s.species]||0)+Number(s.amount));
+  const topSpecies = Object.entries(speciesMap).sort((a,b)=>b[1]-a[1])[0];
+  if(topSpecies) findings.push(`主力渔获为「${topSpecies[0]}」，贡献 ${(topSpecies[1]/d.totalSale*100).toFixed(1)}% 的收入。`);
+  // 预支
+  if(d.totalAdvance>0) findings.push(`本航期预支工资合计 ${money(d.totalAdvance)}，结算时请人工核对冲抵。`);
+  if(d.totalAdvance>0 && d.totalAdvance>d.totalWage*0.5) tips.push('预支金额较大，建议关注船员现金流健康度。');
+  if(d.days>0) findings.push(`本航期共 ${d.days} 天（约 ${d.months.toFixed(1)} 个月），日均净利 ${money(d.netProfit/d.days)}。`);
+
+  const riskLevel = d.profitRate>=20?'low':(d.profitRate>=0?'mid':'high');
+  const riskLabel = d.profitRate>=20?'风险较低':(d.profitRate>=0?'风险中等':'风险较高');
+  let text = `【经营概况】\n` + findings.map(f=>`· ${f}`).join('\n');
+  text += `\n\n【改善建议】\n`;
+  text += tips.length ? tips.map((t,i)=>`${i+1}. ${t}`).join('\n') : '1. 经营数据整体平稳，可继续保持，并关注后续航期的成本控制。';
+  text += `\n\n【风险评级】 ${riskLabel}`;
+
+  box.innerHTML = text.replace(/\n/g,'<br>').replace(/【(.*?)】/g,'<b>【$1】</b>');
+  status.innerHTML = `综合风险：<span class="risk ${riskLevel}">${riskLabel}</span>`;
+  if(!DB.settings.apiKey){ status.innerHTML += '　<span class="hint-line">（内置规则分析 · 离线可用）</span>'; }
+
+  // 若配置了 API，异步获取深度分析
+  if(DB.settings.apiKey && DB.settings.apiBase){
+    status.innerHTML += '　<span class="hint-line">AI 深度分析生成中…</span>';
+    callAI(d).then(res=>{
+      if(res){ box.innerHTML = res.replace(/\n/g,'<br>').replace(/\*\*(.*?)\*\*/g,'<b>$1</b>'); status.innerHTML = `综合风险：<span class="risk ${riskLevel}">${riskLabel}</span>　<span class="hint-line">（AI 大模型深度分析）</span>`; }
+      else { status.innerHTML = `综合风险：<span class="risk ${riskLevel}">${riskLabel}</span>　<span class="hint-line">（AI 调用失败，显示内置分析）</span>`; }
+    });
+  }
+}
+
+async function callAI(d){
+  try{
+    const payload = buildAIPrompt(d);
+    const res = await fetch(DB.settings.apiBase.replace(/\/$/,'')+'/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+DB.settings.apiKey},
+      body: JSON.stringify({ model: DB.settings.model||'deepseek-chat', messages:[{role:'user',content:payload}], temperature:0.4 })
+    });
+    if(!res.ok) return null;
+    const data = await res.json();
+    return data.choices&&data.choices[0]&&data.choices[0].message.content;
+  }catch(e){ return null; }
+}
+function buildAIPrompt(d){
+  return `你是一名资深的渔船经营管理顾问。请根据以下航期经营数据，用中文给出简明专业的经营分析与改善建议（200字以内，分"经营概况""问题""建议"三部分，使用换行，可适度用markdown加粗）：
+航期：${d.v.name}，${d.days}天，${d.months.toFixed(1)}个月
+卖鱼总收入：${money(d.totalSale)}，采购开销：${money(d.totalExpense)}，工资合计：${money(d.totalWage)}（员工按月薪×航期月数结算，共 ${d.staffWages.length} 人），预支：${money(d.totalAdvance)}
+净利润：${money(d.netProfit)}，收益率：${d.profitRate.toFixed(1)}%
+开销分类：${Object.entries(d.catMap).map(([k,v])=>k+'='+money(v)).join('，')||'无'}
+鱼种收入：${Object.entries(d.sales.reduce((m,s)=>{m[s.species]=(m[s.species]||0)+Number(s.amount);return m;},{})).map(([k,v])=>k+'='+money(v)).join('，')||'无'}`;
+}
+
+/* ============ 航期 ============ */
+function renderVoyages(){
+  const tb = document.getElementById('voyageTable');
+  if(!DB.voyages.length){ tb.innerHTML='<tr><td colspan="6" class="empty">暂无航期，点击右上角「新建航期」开始。</td></tr>'; return; }
+  tb.innerHTML = DB.voyages.map(v=>{
+    const days = daysBetween(v.startDate,v.endDate);
+    return `<tr>
+      <td><b>${esc(v.name)}</b></td>
+      <td>${esc(v.startDate)}</td><td>${esc(v.endDate)}</td>
+      <td class="num">${days} 天</td>
+      <td class="num"><span class="tag on">进行中</span></td>
+      <td><div class="actions">
+        <button class="iconbtn" onclick="openVoyage('${v.id}')">编辑</button>
+        <button class="iconbtn" onclick="delVoyage('${v.id}')">删除</button>
+      </div></td></tr>`;
+  }).join('');
+}
+function openVoyage(id){
+  const v = id?DB.voyages.find(x=>x.id===id):null;
+  modal(`
+    <h3>${v?'编辑航期':'新建航期'}</h3>
+    <div class="form-grid">
+      <div class="full"><label>航期名称</label><input id="f_name" value="${v?esc(v.name):''}" placeholder="如：2025 春季第一航期"></div>
+      <div><label>启航日期</label><input id="f_start" type="date" value="${v?v.startDate:todayStr()}"></div>
+      <div><label>返航日期</label><input id="f_end" type="date" value="${v?v.endDate:todayStr()}"></div>
+    </div>
+    <div class="flex mt">
+      <span class="spacer"></span>
+      <button class="btn ghost" onclick="closeModal()">取消</button>
+      <button class="btn" onclick="saveVoyage('${id||''}')">保存</button>
+    </div>`);
+}
+function saveVoyage(id){
+  const name=document.getElementById('f_name').value.trim();
+  const start=document.getElementById('f_start').value;
+  const end=document.getElementById('f_end').value;
+  if(!name||!start||!end){ toast('请填写名称与日期'); return; }
+  if(end<start){ toast('返航日期不能早于启航日期'); return; }
+  if(id){ Object.assign(DB.voyages.find(x=>x.id===id),{name,startDate:start,endDate:end}); }
+  else { DB.voyages.push({id:uid(),name,startDate:start,endDate:end}); }
+  save(); closeModal(); renderAll(); toast('已保存航期');
+}
+function delVoyage(id){
+  if(!confirm('确定删除该航期？其关联的开销、卖鱼、预支记录也会一并删除。')) return;
+  DB.voyages = DB.voyages.filter(v=>v.id!==id);
+  DB.expenses = DB.expenses.filter(e=>e.voyageId!==id);
+  DB.sales = DB.sales.filter(s=>s.voyageId!==id);
+  DB.advances = DB.advances.filter(a=>a.voyageId!==id);
+  save(); renderAll(); toast('已删除');
+}
+
+/* ============ 开销 ============ */
+function renderExpenses(){
+  const vid=document.getElementById('expVoyageFilter').value;
+  const cat=document.getElementById('expCatFilter').value;
+  // 填充分类筛选
+  document.getElementById('expCatFilter').innerHTML = '<option value="">全部分类</option>'+DB.categories.map(c=>`<option ${c===cat?'selected':''}>${esc(c)}</option>`).join('');
+  document.getElementById('expVoyageFilter').innerHTML = voyageOptions();
+  if(vid) document.getElementById('expVoyageFilter').value=vid;
+  let list = DB.expenses.filter(e=>(!vid||e.voyageId===vid)&&(!cat||e.category===cat));
+  list.sort((a,b)=>b.date.localeCompare(a.date));
+  const tb=document.getElementById('expenseTable');
+  if(!list.length){ tb.innerHTML='<tr><td colspan="6" class="empty">暂无开销记录。</td></tr>'; return; }
+  const vname = id=>{const v=DB.voyages.find(x=>x.id===id);return v?v.name:'—';};
+  tb.innerHTML=list.map(e=>`<tr>
+    <td>${esc(e.date)}</td><td>${esc(vname(e.voyageId))}</td>
+    <td><span class="tag">${esc(e.category)}</span></td>
+    <td>${esc(e.note||'')}</td><td class="num">${money(e.amount)}</td>
+    <td><div class="actions"><button class="iconbtn" onclick="openExpense('${e.id}')">编辑</button><button class="iconbtn" onclick="delExpense('${e.id}')">删</button></div></td></tr>`).join('');
+}
+function openExpense(id){
+  const e=id?DB.expenses.find(x=>x.id===id):null;
+  modal(`
+    <h3>${e?'编辑开销':'记一笔开销'}</h3>
+    <div class="form-grid">
+      <div><label>日期</label><input id="f_date" type="date" value="${e?e.date:todayStr()}"></div>
+      <div><label>所属航期</label><select id="f_voyage">${voyageOptions().replace('value="'+ (e?e.voyageId:'') +'"', 'value="'+(e?e.voyageId:'')+'" selected')}</select></div>
+      <div><label>分类</label><select id="f_cat">${catOptions().replace('>'+esc(e?e.category:'')+'<',' selected>'+esc(e?e.category:'')+'<')}</select></div>
+      <div><label>金额（元）</label><input id="f_amount" type="number" step="0.01" value="${e?e.amount:''}" placeholder="0.00"></div>
+      <div class="full"><label>说明</label><input id="f_note" value="${e?esc(e.note||''):''}" placeholder="如：柴油 3 桶、渔网 2 张"></div>
+    </div>
+    <div class="flex mt"><span class="spacer"></span><button class="btn ghost" onclick="closeModal()">取消</button><button class="btn" onclick="saveExpense('${id||''}')">保存</button></div>`);
+  // 修正选择
+  if(e){ document.getElementById('f_voyage').value=e.voyageId; document.getElementById('f_cat').value=e.category; }
+}
+function saveExpense(id){
+  const date=document.getElementById('f_date').value, voyageId=document.getElementById('f_voyage').value;
+  const category=document.getElementById('f_cat').value, amount=document.getElementById('f_amount').value, note=document.getElementById('f_note').value.trim();
+  if(!date||!voyageId||!category||!amount){ toast('请完整填写'); return; }
+  if(id){ Object.assign(DB.expenses.find(x=>x.id===id),{date,voyageId,category,amount:Number(amount),note}); }
+  else { DB.expenses.push({id:uid(),date,voyageId,category,amount:Number(amount),note}); }
+  save(); closeModal(); renderAll(); toast('已保存');
+}
+function delExpense(id){ if(!confirm('删除这条开销？'))return; DB.expenses=DB.expenses.filter(e=>e.id!==id); save(); renderAll(); }
+
+/* ============ 卖鱼 ============ */
+function renderSales(){
+  const vid=document.getElementById('saleVoyageFilter').value;
+  document.getElementById('saleVoyageFilter').innerHTML = voyageOptions();
+  if(vid) document.getElementById('saleVoyageFilter').value=vid;
+  let list = DB.sales.filter(s=>!vid||s.voyageId===vid);
+  list.sort((a,b)=>b.date.localeCompare(a.date));
+  const tb=document.getElementById('saleTable');
+  if(!list.length){ tb.innerHTML='<tr><td colspan="8" class="empty">暂无卖鱼记录。</td></tr>'; return; }
+  const vname=id=>{const v=DB.voyages.find(x=>x.id===id);return v?v.name:'—';};
+  tb.innerHTML=list.map(s=>`<tr>
+    <td>${esc(s.date)}</td><td>${esc(vname(s.voyageId))}</td>
+    <td><b>${esc(s.species)}</b></td>
+    <td class="num">${fmt(s.price)}</td><td class="num">${fmt(s.weight)}</td>
+    <td class="num"><b style="color:var(--green)">${money(s.amount)}</b></td>
+    <td>${esc(s.note||'')}</td>
+    <td><div class="actions"><button class="iconbtn" onclick="openSale('${s.id}')">编辑</button><button class="iconbtn" onclick="delSale('${s.id}')">删</button></div></td></tr>`).join('');
+}
+function openSale(id){
+  const s=id?DB.sales.find(x=>x.id===id):null;
+  modal(`
+    <h3>${s?'编辑卖鱼':'记一笔卖鱼'}</h3>
+    <div class="form-grid">
+      <div><label>日期</label><input id="f_date" type="date" value="${s?s.date:todayStr()}"></div>
+      <div><label>所属航期</label><select id="f_voyage">${voyageOptions()}</select></div>
+      <div><label>鱼种</label><input id="f_species" value="${s?esc(s.species):''}" placeholder="如：带鱼、黄花鱼"></div>
+      <div><label>单价（元/斤）</label><input id="f_price" type="number" step="0.01" value="${s?s.price:''}" oninput="calcSaleAmount()"></div>
+      <div><label>重量（斤）</label><input id="f_weight" type="number" step="0.01" value="${s?s.weight:''}" oninput="calcSaleAmount()"></div>
+      <div><label>金额（元，自动计算）</label><input id="f_amount" type="number" step="0.01" value="${s?s.amount:''}" readonly style="background:var(--panel)"></div>
+      <div class="full"><label>备注</label><input id="f_note" value="${s?esc(s.note||''):''}" placeholder="如：批发给某某鱼贩"></div>
+    </div>
+    <div class="flex mt"><span class="spacer"></span><button class="btn ghost" onclick="closeModal()">取消</button><button class="btn" onclick="saveSale('${id||''}')">保存</button></div>`);
+  if(s) document.getElementById('f_voyage').value=s.voyageId;
+  calcSaleAmount();
+}
+function calcSaleAmount(){
+  const p=parseFloat(document.getElementById('f_price').value)||0;
+  const w=parseFloat(document.getElementById('f_weight').value)||0;
+  document.getElementById('f_amount').value=(p*w).toFixed(2);
+}
+function saveSale(id){
+  const date=document.getElementById('f_date').value, voyageId=document.getElementById('f_voyage').value;
+  const species=document.getElementById('f_species').value.trim();
+  const price=document.getElementById('f_price').value, weight=document.getElementById('f_weight').value;
+  const amount=document.getElementById('f_amount').value, note=document.getElementById('f_note').value.trim();
+  if(!date||!voyageId||!species||!price||!weight){ toast('请完整填写'); return; }
+  if(id){ Object.assign(DB.sales.find(x=>x.id===id),{date,voyageId,species,price:Number(price),weight:Number(weight),amount:Number(amount),note}); }
+  else { DB.sales.push({id:uid(),date,voyageId,species,price:Number(price),weight:Number(weight),amount:Number(amount),note}); }
+  save(); closeModal(); renderAll(); toast('已保存');
+}
+function delSale(id){ if(!confirm('删除这条卖鱼记录？'))return; DB.sales=DB.sales.filter(s=>s.id!==id); save(); renderAll(); }
+
+/* ============ 员工 ============ */
+function renderStaff(){
+  const tb=document.getElementById('staffTable');
+  if(!DB.staff.length){ tb.innerHTML='<tr><td colspan="5" class="empty">暂无员工，点击「添加员工」。</td></tr>'; return; }
+  tb.innerHTML=DB.staff.map(s=>`<tr>
+    <td><b>${esc(s.name)}</b></td>
+    <td><span class="tag ${s.role==='船长'?'on':''}">${esc(s.role)}</span></td>
+    <td class="num">${money(s.monthlySalary)}</td>
+    <td>${esc(s.note||'')}</td>
+    <td><div class="actions"><button class="iconbtn" onclick="openStaff('${s.id}')">编辑</button><button class="iconbtn" onclick="delStaff('${s.id}')">删</button></div></td></tr>`).join('');
+}
+function openStaff(id){
+  const s=id?DB.staff.find(x=>x.id===id):null;
+  const role=s?s.role:'船员';
+  modal(`
+    <h3>${s?'编辑员工':'添加员工'}</h3>
+    <div class="form-grid">
+      <div><label>姓名</label><input id="f_name" value="${s?esc(s.name):''}" placeholder="姓名"></div>
+      <div><label>岗位</label><select id="f_role"><option ${role==='船长'?'selected':''}>船长</option><option ${role==='船员'?'selected':''}>船员</option></select></div>
+      <div><label>月薪（元，按航期月数结算）</label><input id="f_salary" type="number" step="0.01" value="${s?s.monthlySalary:''}" placeholder="如 7000"></div>
+      <div class="full"><label>备注</label><input id="f_note" value="${s?esc(s.note||''):''}" placeholder="如：负责起网、分拣"></div>
+    </div>
+    <div class="flex mt"><span class="spacer"></span><button class="btn ghost" onclick="closeModal()">取消</button><button class="btn" onclick="saveStaff('${id||''}')">保存</button></div>`);
+}
+function saveStaff(id){
+  const name=document.getElementById('f_name').value.trim(), role=document.getElementById('f_role').value;
+  const salary=document.getElementById('f_salary').value, note=document.getElementById('f_note').value.trim();
+  if(!name){ toast('请填写姓名'); return; }
+  if(id){ Object.assign(DB.staff.find(x=>x.id===id),{name,role,monthlySalary:Number(salary)||0,note}); }
+  else { DB.staff.push({id:uid(),name,role,monthlySalary:Number(salary)||0,note}); }
+  save(); closeModal(); renderAll(); toast('已保存');
+}
+function delStaff(id){ if(!confirm('删除该员工？'))return; DB.staff=DB.staff.filter(s=>s.id!==id); save(); renderAll(); }
+
+/* ============ 预支 ============ */
+function renderAdvances(){
+  const vid=document.getElementById('advVoyageFilter').value;
+  document.getElementById('advVoyageFilter').innerHTML = voyageOptions();
+  if(vid) document.getElementById('advVoyageFilter').value=vid;
+  let list=DB.advances.filter(a=>!vid||a.voyageId===vid);
+  list.sort((a,b)=>b.date.localeCompare(a.date));
+  const tb=document.getElementById('advanceTable');
+  if(!list.length){ tb.innerHTML='<tr><td colspan="6" class="empty">暂无预支记录。</td></tr>'; return; }
+  const nm=id=>{const s=DB.staff.find(x=>x.id===id);return s?s.name:'—';};
+  const vn=id=>{const v=DB.voyages.find(x=>x.id===id);return v?v.name:'—';};
+  tb.innerHTML=list.map(a=>`<tr>
+    <td>${esc(a.date)}</td><td><b>${esc(nm(a.staffId))}</b></td><td>${esc(vn(a.voyageId))}</td>
+    <td class="num"><b style="color:var(--amber)">${money(a.amount)}</b></td>
+    <td>${esc(a.note||'')}</td>
+    <td><div class="actions"><button class="iconbtn" onclick="openAdvance('${a.id}')">编辑</button><button class="iconbtn" onclick="delAdvance('${a.id}')">删</button></div></td></tr>`).join('');
+}
+function openAdvance(id){
+  const a=id?DB.advances.find(x=>x.id===id):null;
+  modal(`
+    <h3>${a?'编辑预支':'记一笔预支'}</h3>
+    <div class="form-grid">
+      <div><label>日期</label><input id="f_date" type="date" value="${a?a.date:todayStr()}"></div>
+      <div><label>员工</label><select id="f_staff">${staffOptions()}</select></div>
+      <div><label>所属航期</label><select id="f_voyage">${voyageOptions()}</select></div>
+      <div><label>金额（元）</label><input id="f_amount" type="number" step="0.01" value="${a?a.amount:''}" placeholder="0.00"></div>
+      <div class="full"><label>备注</label><input id="f_note" value="${a?esc(a.note||''):''}" placeholder="如：预支 5000 用于家中急用"></div>
+    </div>
+    <div class="flex mt"><span class="spacer"></span><button class="btn ghost" onclick="closeModal()">取消</button><button class="btn" onclick="saveAdvance('${id||''}')">保存</button></div>`);
+  if(a){ document.getElementById('f_staff').value=a.staffId; document.getElementById('f_voyage').value=a.voyageId; }
+}
+function saveAdvance(id){
+  const date=document.getElementById('f_date').value, staffId=document.getElementById('f_staff').value;
+  const voyageId=document.getElementById('f_voyage').value, amount=document.getElementById('f_amount').value, note=document.getElementById('f_note').value.trim();
+  if(!date||!staffId||!voyageId||!amount){ toast('请完整填写'); return; }
+  if(id){ Object.assign(DB.advances.find(x=>x.id===id),{date,staffId,voyageId,amount:Number(amount),note}); }
+  else { DB.advances.push({id:uid(),date,staffId,voyageId,amount:Number(amount),note}); }
+  save(); closeModal(); renderAll(); toast('已保存');
+}
+function delAdvance(id){ if(!confirm('删除这条预支？'))return; DB.advances=DB.advances.filter(a=>a.id!==id); save(); renderAll(); }
+
+/* ============ 设置 ============ */
+function renderCategories(){
+  document.getElementById('catList').innerHTML = DB.categories.map(c=>`
+    <span class="flex" style="gap:6px;background:var(--panel2);padding:5px 10px;border-radius:8px">
+      <span style="font-size:13px">${esc(c)}</span>
+      <button class="iconbtn" style="border:none;padding:0 2px" onclick="delCategory('${esc(c)}')" title="删除">✕</button>
+    </span>`).join('');
+}
+function addCategory(){
+  const v=document.getElementById('newCatInput').value.trim();
+  if(!v){ toast('请输入分类名称'); return; }
+  if(DB.categories.includes(v)){ toast('分类已存在'); return; }
+  DB.categories.push(v); save(); renderCategories(); document.getElementById('newCatInput').value=''; toast('已添加分类');
+}
+function delCategory(c){
+  const used=DB.expenses.some(e=>e.category===c);
+  if(used){ toast('该分类已有开销记录，无法删除'); return; }
+  DB.categories=DB.categories.filter(x=>x!==c); save(); renderCategories();
+}
+function loadSettingsIntoForm(){
+  document.getElementById('apiBase').value=DB.settings.apiBase||'';
+  document.getElementById('apiKey').value=DB.settings.apiKey||'';
+  document.getElementById('apiModel').value=DB.settings.model||'';
+}
+function saveSettings(){
+  DB.settings.apiBase=document.getElementById('apiBase').value.trim();
+  DB.settings.apiKey=document.getElementById('apiKey').value.trim();
+  DB.settings.model=document.getElementById('apiModel').value.trim();
+  save(); renderAll(); toast('设置已保存');
+}
+async function testAI(){
+  DB.settings.apiBase=document.getElementById('apiBase').value.trim();
+  DB.settings.apiKey=document.getElementById('apiKey').value.trim();
+  DB.settings.model=document.getElementById('apiModel').value.trim();
+  if(!DB.settings.apiKey||!DB.settings.apiBase){ toast('请先填写 Base URL 与 Key'); return; }
+  toast('正在测试…');
+  try{
+    const res=await fetch(DB.settings.apiBase.replace(/\/$/,'')+'/chat/completions',{
+      method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+DB.settings.apiKey},
+      body:JSON.stringify({model:DB.settings.model||'deepseek-chat',messages:[{role:'user',content:'请回复"连接成功"四个字'}],max_tokens:10})
+    });
+    if(res.ok){ const d=await res.json(); toast(d.choices&&d.choices[0].message.content||'连接成功'); }
+    else toast('连接失败：HTTP '+res.status);
+  }catch(e){ toast('连接失败：'+e.message); }
+}
+
+/* ============ 导入导出 ============ */
+function exportJSON(){
+  const blob=new Blob([JSON.stringify(DB,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='渔船账本备份_'+todayStr()+'.json';
+  a.click(); URL.revokeObjectURL(a.href);
+  toast('已导出备份文件');
+}
+function importJSON(ev){
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const data=JSON.parse(r.result);
+      if(!data.voyages) throw 0;
+      if(!confirm('导入将覆盖当前所有数据，确定继续？')) return;
+      DB=data; if(!DB.settings) DB.settings={apiBase:'https://api.deepseek.com/v1',apiKey:'',model:'deepseek-chat'};
+      save(); renderAll(); toast('导入成功');
+    }catch(e){ toast('文件格式错误'); }
+  };
+  r.readAsText(f); ev.target.value='';
+}
+
+/* ============ 启动 ============ */
+initNav();
+renderAll();
+showPage('overview');
+</script>
+</body>
+</html>
