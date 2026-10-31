@@ -23,3 +23,16 @@
 
 - 构建命令：留空
 - 发布目录：`/`
+
+## 更新发布流程
+
+修改 `index.html` 后，在 `fishbook` 目录运行：
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+.\publish.ps1 -Message "本次更新说明"
+```
+
+脚本会通过 GitHub CLI 把文件推送到仓库的 `main` 分支，Netlify 随即自动重新部署（约 10 秒）。手机刷新站点即可看到新版本。
+
+前提：已安装 GitHub CLI 并完成 `gh auth login`。
