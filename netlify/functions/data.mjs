@@ -1,7 +1,7 @@
 // Netlify Function: 账本云端存储 API
-// GET  /api/data  -> 读取账本
-// PUT  /api/data  -> 保存账本
-// 访问码通过 x-access-code 请求头校验，可在 Netlify 环境变量 ACCESS_CODE 中配置
+// GET  /.netlify/functions/data  -> 读取账本
+// PUT  /.netlify/functions/data  -> 保存账本
+// 访问码通过 x-access-code 请求头（或 ?code= 参数）校验，可在 Netlify 环境变量 ACCESS_CODE 中配置
 
 import { getStore } from "@netlify/blobs";
 
@@ -51,7 +51,8 @@ export default async (req) => {
 
   try {
     if (req.method === "GET") {
-      const rec = await store.get(KEY, { type: "json" });
+      // 强一致性读取，避免写入后立即读取拿到旧值
+      const rec = await store.get(KEY, { type: "json", consistency: "strong" });
       if (!rec) return json({ data: null, updatedAt: 0 });
       return json({ data: rec.data ?? null, updatedAt: rec.updatedAt || 0 });
     }
@@ -71,3 +72,4 @@ export default async (req) => {
     return json({ error: "server-error", message: String(err && err.message ? err.message : err) }, 500);
   }
 };
+
