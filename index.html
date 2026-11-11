@@ -22,6 +22,8 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
 header{position:sticky;top:0;z-index:50;background:rgba(15,23,42,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:0 20px;display:flex;align-items:center;gap:16px;height:60px}
 .logo{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;white-space:nowrap}
 .logo .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+#syncBadge{font-size:12px;color:var(--muted);padding:4px 10px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);cursor:pointer;white-space:nowrap;flex-shrink:0}
+#syncBadge:hover{border-color:var(--muted)}
 nav{display:flex;gap:4px;flex:1;overflow-x:auto}
 nav button{background:transparent;border:none;color:var(--muted);padding:8px 14px;border-radius:8px;font-size:14px;white-space:nowrap}
 nav button.active{background:var(--panel2);color:var(--text)}
@@ -155,6 +157,7 @@ tr:hover td{background:rgba(56,189,248,.04)}
 <header>
   <div class="logo"><span class="dot"></span>渔船航期账本</div>
   <nav id="nav"></nav>
+  <div id="syncBadge" title="点击手动同步">仅本地</div>
 </header>
 
 <main>
@@ -264,10 +267,20 @@ tr:hover td{background:rgba(56,189,248,.04)}
         </div>
         <div class="flex mt"><button class="btn" onclick="saveSettings()">保存设置</button><button class="btn ghost" onclick="testAI()">测试连接</button></div>
       </div>
+      <div class="card">
+        <h3>云端同步</h3>
+        <p class="hint-line mb">开启后账本会实时保存到云端，手机、电脑等任何设备打开同一链接都能看到并编辑同一份数据。</p>
+        <div class="flex mb" style="gap:10px">
+          <span class="tag" id="syncTag">仅本地</span>
+          <button class="btn sm" onclick="openAuthModal()">设置访问码并开启同步</button>
+          <button class="btn ghost sm" onclick="useLocalOnly()">关闭同步</button>
+        </div>
+        <p class="hint-line">访问码由 Netlify 站点的环境变量 <code style="background:var(--panel2);padding:1px 5px;border-radius:4px">ACCESS_CODE</code> 决定。所有设备填写同一个访问码，即可共享同一份账本。</p>
+      </div>
     </div>
     <div class="card mt">
       <h3>数据说明</h3>
-      <p class="hint-line" style="line-height:2">所有数据保存在本机浏览器（localStorage）中，离线可用。建议定期点击「航期管理 → 导出数据」备份为 JSON 文件；换电脑时用「导入数据」恢复。清除浏览器缓存会删除数据，请务必定期备份。</p>
+      <p class="hint-line" style="line-height:2">开启云端同步后，数据同时保存在云端和本机（离线也能查看和录入，联网后自动同步）。未开启同步时，数据仅保存在本机浏览器中。无论是否开启同步，都建议定期点击「航期管理 → 导出数据」做一份 JSON 备份。</p>
     </div>
   </section>
 </main>
@@ -276,12 +289,22 @@ tr:hover td{background:rgba(56,189,248,.04)}
 <div class="toast" id="toast"></div>
 
 <script>
-/* ============ 数据模型与存储 ============ */
+/* ============ 数据模型与存储（本地缓存 + 云端同步） ============ */
 const STORE_KEY = 'fishing_ledger_v1';
-let DB = load();
-function load(){
-  const raw = localStorage.getItem(STORE_KEY);
-  if(raw){ try{ return JSON.parse(raw); }catch(e){} }
+const CODE_KEY = 'fishbook_access_code';
+const API_URL = '/.netlify/functions/data';
+
+let DB = loadLocal();
+let SYNC = {
+  code: localStorage.getItem(CODE_KEY) || '',
+  online: false,
+  lastRemoteAt: 0,
+  pushTimer: null,
+  pollingTimer: null,
+  firstPullDone: false
+};
+
+function defaultDB(){
   return {
     voyages:[],
     expenses:[],
@@ -292,8 +315,176 @@ function load(){
     settings:{ apiBase:'https://api.deepseek.com/v1', apiKey:'', model:'deepseek-chat' }
   };
 }
-function save(){ localStorage.setItem(STORE_KEY, JSON.stringify(DB)); }
+function loadLocal(){
+  const raw = localStorage.getItem(STORE_KEY);
+  if(raw){ try{ const d = JSON.parse(raw); if(d && d.voyages) return d; }catch(e){} }
+  return defaultDB();
+}
+function save(){
+  localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  queuePush();
+}
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+
+/* ---------- 云端同步 ---------- */
+function syncEnabled(){ return !!SYNC.code; }
+
+function setSyncState(state, detail){
+  const el = document.getElementById('syncBadge');
+  const tag = document.getElementById('syncTag');
+  const map = {
+    saved:   {t:'已同步', c:'var(--green)', tag:'云端同步中'},
+    saving:  {t:'同步中…', c:'var(--amber)', tag:'云端同步中'},
+    offline: {t:'离线', c:'var(--red)', tag:'离线（用本机缓存）'},
+    local:   {t:'仅本地', c:'var(--muted)', tag:'仅本地'},
+    error:   {t:'同步失败', c:'var(--red)', tag:'同步异常'}
+  };
+  const s = map[state] || map.local;
+  if(el){
+    el.textContent = s.t;
+    el.style.color = s.c;
+    el.title = detail || '';
+    el.onclick = () => { if(syncEnabled()) pullNow(true); };
+  }
+  if(tag){
+    tag.textContent = s.tag;
+    tag.className = 'tag' + (state === 'saved' || state === 'saving' ? ' on' : '');
+  }
+}
+
+function queuePush(){
+  if(!syncEnabled()){ setSyncState('local'); return; }
+  setSyncState('saving');
+  clearTimeout(SYNC.pushTimer);
+  SYNC.pushTimer = setTimeout(pushNow, 600);
+}
+
+async function pushNow(){
+  if(!syncEnabled()) return;
+  try{
+    const res = await fetch(API_URL, {
+      method:'PUT',
+      headers:{'content-type':'application/json','x-access-code':SYNC.code},
+      body: JSON.stringify({ data: DB })
+    });
+    if(res.status === 401){ handleAuthFail(); return; }
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j = await res.json();
+    SYNC.online = true;
+    if(j.updatedAt) SYNC.lastRemoteAt = j.updatedAt;
+    setSyncState('saved');
+  }catch(e){
+    SYNC.online = false;
+    setSyncState('offline', '无法连接云端，数据已保存在本机');
+  }
+}
+
+async function pullNow(force){
+  if(!syncEnabled()) return false;
+  try{
+    const res = await fetch(API_URL, {headers:{'x-access-code':SYNC.code}});
+    if(res.status === 401){ handleAuthFail(); return false; }
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j = await res.json();
+    SYNC.online = true;
+    if(j && !j.data && !j.updatedAt){
+      // 云端还没有数据：把本机现有数据上传（首次开启同步的场景）
+      const hasLocal = DB.voyages.length || DB.expenses.length || DB.sales.length || DB.staff.length || DB.advances.length;
+      if(hasLocal && force){ await pushNow(); return false; }
+      setSyncState('saved');
+      return false;
+    }
+    if(j && j.data && (j.updatedAt || 0) > SYNC.lastRemoteAt){
+      // 正在编辑（弹窗打开）时不打断
+      const editing = document.getElementById('modalBg').classList.contains('show');
+      if(!force && editing){ setSyncState('saved'); return false; }
+      DB = j.data;
+      localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+      SYNC.lastRemoteAt = j.updatedAt || 0;
+      renderAll();
+      setSyncState('saved');
+      return true;
+    }
+    setSyncState('saved');
+    return false;
+  }catch(e){
+    SYNC.online = false;
+    setSyncState('offline', '无法连接云端，使用本机缓存');
+    return false;
+  }
+}
+
+function handleAuthFail(){
+  SYNC.code = '';
+  localStorage.removeItem(CODE_KEY);
+  setSyncState('error', '访问码失效');
+  openAuthModal('访问码无效，请重新输入');
+}
+
+async function verifyCode(code){
+  try{
+    const res = await fetch(API_URL, {headers:{'x-access-code':code}});
+    return res.ok;
+  }catch(e){ return false; }
+}
+
+function openAuthModal(msg){
+  modal(`
+    <h3>🔐 连接云端账本</h3>
+    <p class="hint-line mb">输入访问码后，你的账本会保存到云端，手机、电脑等任何设备打开都能看到同一份数据。</p>
+    ${msg?`<p style="color:var(--red);font-size:13px;margin-bottom:10px">${esc(msg)}</p>`:''}
+    <div class="form-grid">
+      <div class="full"><label>访问码</label><input id="f_code" type="password" placeholder="请输入访问码" autocomplete="current-password"></div>
+    </div>
+    <div class="flex mt">
+      <button class="btn ghost" onclick="useLocalOnly()">仅本机使用</button>
+      <span class="spacer"></span>
+      <button class="btn" onclick="submitCode()">验证并同步</button>
+    </div>
+    <p class="hint-line mt">没有访问码？可在 Netlify 站点设置的环境变量 ACCESS_CODE 中查看或修改。</p>
+  `);
+  setTimeout(()=>{ const el=document.getElementById('f_code'); if(el) el.focus(); }, 50);
+}
+
+async function submitCode(){
+  const el = document.getElementById('f_code');
+  const code = (el ? el.value : '').trim();
+  if(!code){ toast('请输入访问码'); return; }
+  const ok = await verifyCode(code);
+  if(!ok){ toast('访问码错误'); return; }
+  SYNC.code = code;
+  localStorage.setItem(CODE_KEY, code);
+  closeModal();
+  SYNC.lastRemoteAt = 0;
+  const pulled = await pullNow(true);
+  if(!pulled){ renderAll(); }
+  setSyncState('saved');
+  toast('云端已连接，多设备同步已开启');
+  if(SYNC.pollingTimer) clearInterval(SYNC.pollingTimer);
+  startPolling();
+}
+
+function useLocalOnly(){
+  SYNC.code = '';
+  localStorage.removeItem(CODE_KEY);
+  closeModal();
+  setSyncState('local');
+  toast('已切换为仅本机模式，数据不会上传云端');
+}
+
+let _visListenerAdded = false;
+function startPolling(){
+  if(SYNC.pollingTimer) clearInterval(SYNC.pollingTimer);
+  SYNC.pollingTimer = setInterval(()=>{
+    if(document.visibilityState === 'visible' && syncEnabled()) pullNow(false);
+  }, 12000);
+  if(!_visListenerAdded){
+    _visListenerAdded = true;
+    document.addEventListener('visibilitychange', ()=>{
+      if(document.visibilityState === 'visible' && syncEnabled()) pullNow(false);
+    });
+  }
+}
 
 const NAV = [
   ['overview','概览'],
@@ -844,9 +1035,21 @@ function importJSON(ev){
 }
 
 /* ============ 启动 ============ */
-initNav();
-renderAll();
-showPage('overview');
+async function boot(){
+  initNav();
+  setSyncState(syncEnabled() ? 'saving' : 'local');
+  if(syncEnabled()){
+    await pullNow(true);
+  }
+  renderAll();
+  showPage('overview');
+  if(syncEnabled()){
+    startPolling();
+  }else{
+    setTimeout(()=>openAuthModal(), 600);
+  }
+}
+boot();
 </script>
 </body>
 </html>
