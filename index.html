@@ -292,6 +292,7 @@ tr:hover td{background:rgba(56,189,248,.04)}
 /* ============ 数据模型与存储（本地缓存 + 云端同步） ============ */
 const STORE_KEY = 'fishing_ledger_v1';
 const CODE_KEY = 'fishbook_access_code';
+const LOCAL_TS_KEY = 'fishbook_local_ts';
 const API_URL = '/.netlify/functions/data';
 
 let DB = loadLocal();
@@ -301,7 +302,7 @@ let SYNC = {
   lastRemoteAt: 0,
   pushTimer: null,
   pollingTimer: null,
-  firstPullDone: false
+  syncing: false
 };
 
 function defaultDB(){
@@ -320,9 +321,20 @@ function loadLocal(){
   if(raw){ try{ const d = JSON.parse(raw); if(d && d.voyages) return d; }catch(e){} }
   return defaultDB();
 }
+function localTs(){ return Number(localStorage.getItem(LOCAL_TS_KEY) || 0); }
 function save(){
   localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  localStorage.setItem(LOCAL_TS_KEY, String(Date.now()));
   queuePush();
+}
+function countRecords(d){
+  if(!d) return 0;
+  return (d.voyages||[]).length + (d.expenses||[]).length + (d.sales||[]).length + (d.staff||[]).length + (d.advances||[]).length;
+}
+function setLocalData(data, ts){
+  DB = data;
+  localStorage.setItem(STORE_KEY, JSON.stringify(DB));
+  localStorage.setItem(LOCAL_TS_KEY, String(ts || Date.now()));
 }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
 
@@ -380,27 +392,21 @@ async function pushNow(){
 }
 
 async function pullNow(force){
-  if(!syncEnabled()) return false;
+  if(!syncEnabled() || SYNC.syncing) return false;
+  SYNC.syncing = true;
   try{
     const res = await fetch(API_URL, {headers:{'x-access-code':SYNC.code}});
     if(res.status === 401){ handleAuthFail(); return false; }
     if(!res.ok) throw new Error('HTTP '+res.status);
     const j = await res.json();
     SYNC.online = true;
-    if(j && !j.data && !j.updatedAt){
-      // 云端还没有数据：把本机现有数据上传（首次开启同步的场景）
-      const hasLocal = DB.voyages.length || DB.expenses.length || DB.sales.length || DB.staff.length || DB.advances.length;
-      if(hasLocal && force){ await pushNow(); return false; }
-      setSyncState('saved');
-      return false;
-    }
-    if(j && j.data && (j.updatedAt || 0) > SYNC.lastRemoteAt){
+    const remoteAt = j.updatedAt || 0;
+    if(j.data && remoteAt > SYNC.lastRemoteAt){
       // 正在编辑（弹窗打开）时不打断
       const editing = document.getElementById('modalBg').classList.contains('show');
       if(!force && editing){ setSyncState('saved'); return false; }
-      DB = j.data;
-      localStorage.setItem(STORE_KEY, JSON.stringify(DB));
-      SYNC.lastRemoteAt = j.updatedAt || 0;
+      setLocalData(j.data, remoteAt);
+      SYNC.lastRemoteAt = remoteAt;
       renderAll();
       setSyncState('saved');
       return true;
@@ -411,6 +417,8 @@ async function pullNow(force){
     SYNC.online = false;
     setSyncState('offline', '无法连接云端，使用本机缓存');
     return false;
+  }finally{
+    SYNC.syncing = false;
   }
 }
 
@@ -455,13 +463,93 @@ async function submitCode(){
   SYNC.code = code;
   localStorage.setItem(CODE_KEY, code);
   closeModal();
-  SYNC.lastRemoteAt = 0;
-  const pulled = await pullNow(true);
-  if(!pulled){ renderAll(); }
+  await initializeSync();
+}
+
+async function initializeSync(){
+  setSyncState('saving');
+  try{
+    const res = await fetch(API_URL, {headers:{'x-access-code':SYNC.code}});
+    if(res.status === 401){ handleAuthFail(); return; }
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j = await res.json();
+    SYNC.online = true;
+    const remoteAt = j.updatedAt || 0;
+    const remoteCount = countRecords(j.data);
+    const localCount = countRecords(DB);
+
+    if(localCount > 0 && remoteCount > 0){
+      // 两边都有数据：交给用户选择，绝不静默覆盖
+      openMergeModal(j.data, remoteAt);
+      return;
+    }
+    if(localCount > 0){
+      SYNC.lastRemoteAt = remoteAt;
+      await pushNow();
+      toast('本机数据已上传到云端');
+    } else if(remoteCount > 0){
+      setLocalData(j.data, remoteAt);
+      SYNC.lastRemoteAt = remoteAt;
+      renderAll();
+      toast('已从云端载入账本');
+    } else {
+      toast('已连接云端，多设备同步已开启');
+    }
+    setSyncState('saved');
+    startPolling();
+  }catch(e){
+    SYNC.online = false;
+    setSyncState('offline', '连接云端失败');
+    toast('连接云端失败，请检查网络');
+  }
+}
+
+function openMergeModal(remoteData, remoteAt){
+  const localCount = countRecords(DB);
+  const remoteCount = countRecords(remoteData);
+  modal(`
+    <h3>⚠️ 数据冲突</h3>
+    <p class="hint-line mb">云端和本机都有账本数据，请选择要保留的一份（另一份会被覆盖）：</p>
+    <div style="background:var(--panel2);padding:12px 14px;border-radius:10px;margin-bottom:16px;line-height:2">
+      <div>📱 <b>本机数据</b>：${localCount} 条记录</div>
+      <div>☁️ <b>云端数据</b>：${remoteCount} 条记录</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn" onclick="resolveMerge('local', ${remoteAt})">使用本机数据（上传覆盖云端）</button>
+      <button class="btn ghost" onclick="resolveMerge('remote', ${remoteAt})">使用云端数据（覆盖本机）</button>
+      <button class="btn ghost" onclick="cancelMerge()">暂不同步（保持本机）</button>
+    </div>
+  `);
+}
+
+async function resolveMerge(choice, remoteAt){
+  closeModal();
+  if(choice === 'local'){
+    SYNC.lastRemoteAt = 0;
+    await pushNow();
+    toast('已用本机数据覆盖云端');
+  } else {
+    try{
+      const res = await fetch(API_URL, {headers:{'x-access-code':SYNC.code}});
+      const j = await res.json();
+      if(j.data){
+        setLocalData(j.data, j.updatedAt || remoteAt);
+        SYNC.lastRemoteAt = j.updatedAt || remoteAt;
+        renderAll();
+        toast('已使用云端数据');
+      }
+    }catch(e){ toast('读取云端失败，保持本机数据'); }
+  }
   setSyncState('saved');
-  toast('云端已连接，多设备同步已开启');
-  if(SYNC.pollingTimer) clearInterval(SYNC.pollingTimer);
   startPolling();
+}
+
+function cancelMerge(){
+  closeModal();
+  SYNC.code = '';
+  localStorage.removeItem(CODE_KEY);
+  setSyncState('local');
+  toast('已保持本机模式，同步未开启');
 }
 
 function useLocalOnly(){
@@ -1035,11 +1123,41 @@ function importJSON(ev){
 }
 
 /* ============ 启动 ============ */
+async function syncOnBoot(){
+  try{
+    const res = await fetch(API_URL, {headers:{'x-access-code':SYNC.code}});
+    if(res.status === 401){ handleAuthFail(); return; }
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const j = await res.json();
+    SYNC.online = true;
+    const remoteAt = j.updatedAt || 0;
+    const remoteCount = countRecords(j.data);
+    const localCount = countRecords(DB);
+    const lts = localTs();
+
+    if(remoteCount > 0 && (remoteAt > lts || localCount === 0)){
+      // 云端更新，或本地为空 → 采用云端
+      setLocalData(j.data, remoteAt);
+      SYNC.lastRemoteAt = remoteAt;
+    } else if(localCount > 0 && lts > remoteAt){
+      // 本机有更新的改动（离线期间录入）→ 上传本机
+      SYNC.lastRemoteAt = remoteAt;
+      await pushNow();
+    } else if(remoteCount === 0 && localCount > 0){
+      await pushNow();
+    }
+    setSyncState('saved');
+  }catch(e){
+    SYNC.online = false;
+    setSyncState('offline', '无法连接云端，使用本机缓存');
+  }
+}
+
 async function boot(){
   initNav();
   setSyncState(syncEnabled() ? 'saving' : 'local');
   if(syncEnabled()){
-    await pullNow(true);
+    await syncOnBoot();
   }
   renderAll();
   showPage('overview');
