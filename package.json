@@ -1,0 +1,9 @@
+{
+  "name": "fishbook",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Fishing voyage ledger with cloud sync",
+  "dependencies": {
+    "@netlify/blobs": "^8.1.0"
+  }
+}
