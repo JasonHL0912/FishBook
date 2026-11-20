@@ -2,7 +2,7 @@
 
 一个面向渔船主的记账工具，记录每个航期的采购开销、卖鱼收益、员工工资与预支，并提供可视化图表与经营分析。支持云端同步，多设备共享同一份账本。
 
-> 线上地址：https://yuchuan-zhangben.netlify.app
+> 线上地址：https://yuchuan-zhangben-v2.netlify.app
 >
 > 完整的项目说明（产品定位、技术架构、数据存储与数据路径）见 **[PROJECT.md](./PROJECT.md)**。
 
