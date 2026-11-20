@@ -2,7 +2,7 @@
 
 > 面向渔船主的单页记账工具：把每趟出海（一个「航期」）从采购到结算的整本账，装进一个手机点开就能用的网页，并自动算出收益率。
 >
-> 线上地址：https://yuchuan-zhangben.netlify.app
+> 线上地址：https://yuchuan-zhangben-v2.netlify.app
 
 ---
 
@@ -213,8 +213,8 @@ fishbook/
 
 | 用途 | URL |
 |---|---|
-| 用户入口 | `https://yuchuan-zhangben.netlify.app/` |
-| 数据 API | `https://yuchuan-zhangben.netlify.app/.netlify/functions/data` |
+| 用户入口 | `https://yuchuan-zhangben-v2.netlify.app/` |
+| 数据 API | `https://yuchuan-zhangben-v2.netlify.app/.netlify/functions/data` |
 
 ### 5.3 一次「录入」的完整数据流转
 
@@ -259,7 +259,7 @@ GitHub 仓库  github.com/JasonHL0912/FishBook（main 分支）
     ↓ Netlify 监听 main 变更，自动构建
 Netlify 构建：npm install @netlify/blobs → 打包 netlify/functions/data.mjs
     ↓
-线上站点  yuchuan-zhangben.netlify.app
+线上站点  yuchuan-zhangben-v2.netlify.app
 ```
 
 ---
