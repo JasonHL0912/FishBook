@@ -6,9 +6,11 @@
 <title>渔船航期记账与经营分析工具</title>
 <style>
 :root{
-  --bg:#0f172a; --panel:#1e293b; --panel2:#273449; --line:#334155;
-  --text:#e2e8f0; --muted:#94a3b8; --accent:#38bdf8; --accent2:#22d3ee;
-  --green:#34d399; --red:#f87171; --amber:#fbbf24; --violet:#a78bfa;
+  --bg:#f2f2f7; --panel:#ffffff; --panel2:#f4f4f7; --line:#e3e3e9;
+  --text:#1c1c1e; --muted:#8e8e93; --accent:#0a84ff; --accent2:#5ac8fa;
+  --green:#34c759; --red:#ff3b30; --amber:#ff9f0a; --violet:#af52de;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --tab-h:58px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:15px;line-height:1.5}
@@ -19,7 +21,8 @@ label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
 ::-webkit-scrollbar{width:8px;height:8px}
 ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
 
-header{position:sticky;top:0;z-index:50;background:rgba(15,23,42,.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:0 20px;display:flex;align-items:center;gap:16px;height:60px}
+header.topbar{position:sticky;top:0;z-index:50;background:rgba(242,242,247,.94);backdrop-filter:blur(20px);border-bottom:1px solid var(--line);padding:10px 16px;display:flex;align-items:center;gap:10px;min-height:54px;padding-top:calc(10px + env(safe-area-inset-top,0px))}
+header.topbar h2{font-size:19px;font-weight:700;margin:0}
 .logo{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px;white-space:nowrap}
 .logo .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
 #syncBadge{font-size:12px;color:var(--muted);padding:4px 10px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);cursor:pointer;white-space:nowrap;flex-shrink:0}
@@ -150,13 +153,63 @@ tr:hover td{background:rgba(56,189,248,.04)}
   input,select,textarea{font-size:16px;padding:10px} /* 16px 防止 iOS 缩放 */
   .donut{width:130px;height:130px}
   .chart-wrap{justify-content:center}
+  .page > h2{display:none}
+  .page > .sub{margin-bottom:12px;margin-top:2px}
+}
+
+/* ============ 移动端组件（iOS 风格） ============ */
+body{padding-bottom:calc(var(--tab-h) + var(--safe-b) + 16px)}
+
+/* 底部 Tab Bar */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;background:rgba(255,255,255,.94);backdrop-filter:blur(20px);border-top:1px solid var(--line);padding-bottom:var(--safe-b);height:calc(var(--tab-h) + var(--safe-b))}
+.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:var(--muted);font-size:10px;padding:6px 0;min-height:44px}
+.tabbar button .ico{font-size:21px;line-height:1}
+.tabbar button.active{color:var(--accent);background:transparent}
+
+/* 卡片列表（替代表格） */
+.list{display:flex;flex-direction:column;gap:10px}
+.rec{background:var(--panel);border-radius:14px;padding:13px 14px;display:flex;align-items:center;gap:12px;border:1px solid var(--line);box-shadow:0 1px 2px rgba(0,0,0,.03)}
+.rec:active{background:var(--panel2)}
+.rec .main{flex:1;min-width:0}
+.rec .title{font-size:15px;font-weight:600;line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec .meta{font-size:12px;color:var(--muted);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec .amt{font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rec .side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0}
+.rec .edit{background:none;border:none;color:var(--accent);font-size:12px;padding:4px 2px;min-height:24px}
+.rec .icon{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0;background:var(--panel2)}
+
+/* 分段控件 */
+.seg{display:flex;background:var(--panel2);border-radius:10px;padding:3px;gap:3px;margin-bottom:14px}
+.seg button{flex:1;border:none;background:none;padding:8px 6px;border-radius:8px;font-size:13px;color:var(--muted);font-weight:500;min-height:36px}
+.seg button.active{background:#fff;color:var(--text);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.10)}
+
+/* 底部抽屉弹窗 */
+.modal-bg{align-items:flex-end;padding:0}
+.modal{background:var(--panel);border:none;border-radius:20px 20px 0 0;padding:20px 18px calc(24px + var(--safe-b));width:100%;max-width:100%;max-height:88vh;overflow-y:auto;animation:sheetUp .26s cubic-bezier(.32,.72,0,1)}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.modal::before{content:"";display:block;width:38px;height:5px;border-radius:3px;background:var(--line);margin:-8px auto 14px}
+
+/* 图例与图表配色适配浅色 */
+.bar-track{background:var(--panel2)}
+.donut .center{color:var(--text)}
+
+/* 输入与按钮触控优化 */
+input,select,textarea{font-size:16px;min-height:44px}
+.btn{min-height:44px}
+.iconbtn{min-height:32px;padding:4px 10px}
+
+/* 宽屏时回到双列布局 */
+@media (min-width:720px){
+  .grid2{grid-template-columns:1fr 1fr}
+  .kpis{grid-template-columns:repeat(3,1fr)}
+  main{max-width:860px}
 }
 </style>
 </head>
 <body>
-<header>
-  <div class="logo"><span class="dot"></span>渔船航期账本</div>
-  <nav id="nav"></nav>
+<header class="topbar">
+  <h2 id="pageTitle">概览</h2>
+  <span class="spacer"></span>
   <div id="syncBadge" title="点击手动同步">仅本地</div>
 </header>
 
@@ -187,7 +240,7 @@ tr:hover td{background:rgba(56,189,248,.04)}
     <h2>航期管理</h2>
     <p class="sub">每个航期代表一次出海作业（启航前采购 → 返航卖鱼结算）</p>
     <div class="flex mb"><button class="btn" onclick="openVoyage()">＋ 新建航期</button><button class="btn ghost" onclick="exportJSON()">导出数据</button><button class="btn ghost" onclick="document.getElementById('importFile').click()">导入数据</button><input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)"></div>
-    <div class="card"><div class="table-scroll"><table><thead><tr><th>航期名称</th><th>启航日期</th><th>返航日期</th><th>天数</th><th class="num">状态</th><th></th></tr></thead><tbody id="voyageTable"></tbody></table></div></div>
+    <div class="list" id="voyageTable"></div>
   </section>
 
   <!-- 开销 -->
@@ -199,7 +252,7 @@ tr:hover td{background:rgba(56,189,248,.04)}
       <select id="expCatFilter" onchange="renderExpenses()"><option value="">全部分类</option></select>
       <button class="btn" onclick="openExpense()">＋ 记一笔开销</button>
     </div>
-    <div class="card"><div class="table-scroll"><table><thead><tr><th>日期</th><th>航期</th><th>分类</th><th>说明</th><th class="num">金额</th><th></th></tr></thead><tbody id="expenseTable"></tbody></table></div></div>
+    <div class="list" id="expenseTable"></div>
   </section>
 
   <!-- 收益 -->
@@ -210,7 +263,7 @@ tr:hover td{background:rgba(56,189,248,.04)}
       <select id="saleVoyageFilter" onchange="renderSales()"></select>
       <button class="btn" onclick="openSale()">＋ 记一笔卖鱼</button>
     </div>
-    <div class="card"><div class="table-scroll"><table><thead><tr><th>日期</th><th>航期</th><th>鱼种</th><th class="num">单价(元/斤)</th><th class="num">重量(斤)</th><th class="num">金额</th><th>备注</th><th></th></tr></thead><tbody id="saleTable"></tbody></table></div></div>
+    <div class="list" id="saleTable"></div>
   </section>
 
   <!-- 员工 -->
@@ -218,7 +271,7 @@ tr:hover td{background:rgba(56,189,248,.04)}
     <h2>员工与工资</h2>
     <p class="sub">设置员工月薪；所有员工（含船长）均按月薪×航期月数结算</p>
     <div class="flex mb"><button class="btn" onclick="openStaff()">＋ 添加员工</button></div>
-    <div class="card"><div class="table-scroll"><table><thead><tr><th>姓名</th><th>岗位</th><th class="num">月薪(元)</th><th>备注</th><th></th></tr></thead><tbody id="staffTable"></tbody></table></div></div>
+    <div class="list" id="staffTable"></div>
     <div class="section-title">工资结算规则</div>
     <div class="grid2">
       <div class="card"><h3>结算方式</h3>
@@ -241,7 +294,7 @@ tr:hover td{background:rgba(56,189,248,.04)}
       <select id="advVoyageFilter" onchange="renderAdvances()"></select>
       <button class="btn" onclick="openAdvance()">＋ 记一笔预支</button>
     </div>
-    <div class="card"><div class="table-scroll"><table><thead><tr><th>日期</th><th>员工</th><th>航期</th><th class="num">金额</th><th>备注</th><th></th></tr></thead><tbody id="advanceTable"></tbody></table></div></div>
+    <div class="list" id="advanceTable"></div>
   </section>
 
   <!-- 设置 -->
@@ -284,6 +337,8 @@ tr:hover td{background:rgba(56,189,248,.04)}
     </div>
   </section>
 </main>
+
+<nav class="tabbar" id="nav"></nav>
 
 <div class="modal-bg" id="modalBg"><div class="modal" id="modalBody"></div></div>
 <div class="toast" id="toast"></div>
@@ -574,24 +629,52 @@ function startPolling(){
   }
 }
 
-const NAV = [
-  ['overview','概览'],
-  ['voyages','航期'],
-  ['expenses','开销'],
-  ['sales','卖鱼收益'],
-  ['staff','员工工资'],
-  ['advances','预支'],
-  ['settings','设置'],
+const TABS = [
+  ['overview','概览','◎'],
+  ['voyages','航期','⚓'],
+  ['expenses','开销','🧾'],
+  ['sales','卖鱼','🐟'],
+  ['more','更多','⋯'],
+];
+const PAGE_TITLES = {
+  overview:'概览', voyages:'航期管理', expenses:'采购与开销',
+  sales:'卖鱼收益', staff:'员工与工资', advances:'预支记录', settings:'设置'
+};
+const MORE_ITEMS = [
+  ['staff','员工与工资','👥'],
+  ['advances','预支记录','💸'],
+  ['settings','设置','⚙️'],
 ];
 function initNav(){
   const nav = document.getElementById('nav');
-  nav.innerHTML = NAV.map(([id,name])=>`<button data-page="${id}">${name}</button>`).join('');
-  nav.querySelectorAll('button').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+  nav.innerHTML = TABS.map(([id,name,ico])=>`<button data-page="${id}"><span class="ico">${ico}</span>${name}</button>`).join('');
+  nav.querySelectorAll('button').forEach(b=>b.onclick=()=>{
+    const id = b.dataset.page;
+    if(id === 'more'){ openMoreSheet(); return; }
+    showPage(id);
+  });
+}
+function openMoreSheet(){
+  modal(`
+    <h3>更多</h3>
+    <div class="list">
+      ${MORE_ITEMS.map(([id,name,ico])=>`<div class="rec" onclick="closeModal();showPage('${id}')">
+        <div class="icon">${ico}</div>
+        <div class="main"><div class="title">${name}</div></div>
+        <span style="color:var(--muted);font-size:20px">›</span>
+      </div>`).join('')}
+    </div>
+  `);
 }
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById('page-'+id).classList.add('active');
-  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===id));
+  const el = document.getElementById('page-'+id);
+  if(el) el.classList.add('active');
+  let activeTab = id;
+  if(!TABS.some(t=>t[0]===id)) activeTab = 'more';
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active', b.dataset.page===activeTab));
+  const t = document.getElementById('pageTitle');
+  if(t) t.textContent = PAGE_TITLES[id] || '';
   renderAll();
   window.scrollTo(0,0);
 }
@@ -744,10 +827,16 @@ function renderSpecies(d){
 }
 
 function renderWageTable(d){
-  const rows = d.staffWages.map(w=>`<tr><td>${esc(w.name)}（${esc(w.role)} · ${d.months.toFixed(1)} 个月 × ${fmt(w.monthly)}）</td><td class="num">${money(w.wage)}</td></tr>`);
-  document.getElementById('wageTableWrap').innerHTML = rows.length
-    ? `<div class="table-scroll"><table><thead><tr><th>人员</th><th class="num">工资</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`
-    : '<div class="empty">请先在「员工工资」页添加员工。</div>';
+  const el = document.getElementById('wageTableWrap');
+  if(!d.staffWages.length){ el.className=''; el.innerHTML='<div class="empty">请先在「员工工资」页添加员工。</div>'; return; }
+  el.className = 'list';
+  el.innerHTML = d.staffWages.map(w=>`<div class="rec" style="padding:10px 12px">
+    <div class="main">
+      <div class="title" style="font-size:14px">${esc(w.name)}</div>
+      <div class="meta">${esc(w.role)} · ${d.months.toFixed(1)} 个月 × ${fmt(w.monthly)}</div>
+    </div>
+    <span class="amt" style="font-size:14px">${money(w.wage)}</span>
+  </div>`).join('');
 }
 
 /* ============ AI 分析 ============ */
@@ -832,19 +921,21 @@ function buildAIPrompt(d){
 
 /* ============ 航期 ============ */
 function renderVoyages(){
-  const tb = document.getElementById('voyageTable');
-  if(!DB.voyages.length){ tb.innerHTML='<tr><td colspan="6" class="empty">暂无航期，点击右上角「新建航期」开始。</td></tr>'; return; }
-  tb.innerHTML = DB.voyages.map(v=>{
+  const el = document.getElementById('voyageTable');
+  if(!DB.voyages.length){ el.innerHTML='<div class="empty">暂无航期，点击上方「＋ 新建航期」开始。</div>'; return; }
+  el.innerHTML = DB.voyages.map(v=>{
     const days = daysBetween(v.startDate,v.endDate);
-    return `<tr>
-      <td><b>${esc(v.name)}</b></td>
-      <td>${esc(v.startDate)}</td><td>${esc(v.endDate)}</td>
-      <td class="num">${days} 天</td>
-      <td class="num"><span class="tag on">进行中</span></td>
-      <td><div class="actions">
-        <button class="iconbtn" onclick="openVoyage('${v.id}')">编辑</button>
-        <button class="iconbtn" onclick="delVoyage('${v.id}')">删除</button>
-      </div></td></tr>`;
+    return `<div class="rec">
+      <div class="icon">⚓</div>
+      <div class="main">
+        <div class="title">${esc(v.name)}</div>
+        <div class="meta">${esc(v.startDate)} → ${esc(v.endDate)} · ${days} 天</div>
+      </div>
+      <div class="side">
+        <button class="edit" onclick="openVoyage('${v.id}')">编辑</button>
+        <button class="edit" style="color:var(--red)" onclick="delVoyage('${v.id}')">删除</button>
+      </div>
+    </div>`;
   }).join('');
 }
 function openVoyage(id){
@@ -891,14 +982,30 @@ function renderExpenses(){
   if(vid) document.getElementById('expVoyageFilter').value=vid;
   let list = DB.expenses.filter(e=>(!vid||e.voyageId===vid)&&(!cat||e.category===cat));
   list.sort((a,b)=>b.date.localeCompare(a.date));
-  const tb=document.getElementById('expenseTable');
-  if(!list.length){ tb.innerHTML='<tr><td colspan="6" class="empty">暂无开销记录。</td></tr>'; return; }
+  const el=document.getElementById('expenseTable');
+  if(!list.length){ el.innerHTML='<div class="empty">暂无开销记录。</div>'; return; }
   const vname = id=>{const v=DB.voyages.find(x=>x.id===id);return v?v.name:'—';};
-  tb.innerHTML=list.map(e=>`<tr>
-    <td>${esc(e.date)}</td><td>${esc(vname(e.voyageId))}</td>
-    <td><span class="tag">${esc(e.category)}</span></td>
-    <td>${esc(e.note||'')}</td><td class="num">${money(e.amount)}</td>
-    <td><div class="actions"><button class="iconbtn" onclick="openExpense('${e.id}')">编辑</button><button class="iconbtn" onclick="delExpense('${e.id}')">删</button></div></td></tr>`).join('');
+  el.innerHTML=list.map(e=>`<div class="rec">
+    <div class="icon">${catIcon(e.category)}</div>
+    <div class="main">
+      <div class="title">${esc(e.category)}${e.note?' · '+esc(e.note):''}</div>
+      <div class="meta">${esc(e.date)} · ${esc(vname(e.voyageId))}</div>
+    </div>
+    <div class="side">
+      <span class="amt" style="color:var(--red)">−${money(e.amount)}</span>
+      <button class="edit" onclick="openExpense('${e.id}')">编辑</button>
+    </div>
+  </div>`).join('');
+}
+function catIcon(c){
+  if(!c) return '📦';
+  if(c.includes('燃料')||c.includes('油')) return '⛽';
+  if(c.includes('冰')||c.includes('保鲜')) return '❄️';
+  if(c.includes('渔具')||c.includes('工具')||c.includes('网')) return '🪝';
+  if(c.includes('生活')||c.includes('食')) return '🍚';
+  if(c.includes('维修')||c.includes('零件')) return '🔧';
+  if(c.includes('港口')||c.includes('证')) return '🏛️';
+  return '📦';
 }
 function openExpense(id){
   const e=id?DB.expenses.find(x=>x.id===id):null;
@@ -932,16 +1039,20 @@ function renderSales(){
   if(vid) document.getElementById('saleVoyageFilter').value=vid;
   let list = DB.sales.filter(s=>!vid||s.voyageId===vid);
   list.sort((a,b)=>b.date.localeCompare(a.date));
-  const tb=document.getElementById('saleTable');
-  if(!list.length){ tb.innerHTML='<tr><td colspan="8" class="empty">暂无卖鱼记录。</td></tr>'; return; }
+  const el=document.getElementById('saleTable');
+  if(!list.length){ el.innerHTML='<div class="empty">暂无卖鱼记录。</div>'; return; }
   const vname=id=>{const v=DB.voyages.find(x=>x.id===id);return v?v.name:'—';};
-  tb.innerHTML=list.map(s=>`<tr>
-    <td>${esc(s.date)}</td><td>${esc(vname(s.voyageId))}</td>
-    <td><b>${esc(s.species)}</b></td>
-    <td class="num">${fmt(s.price)}</td><td class="num">${fmt(s.weight)}</td>
-    <td class="num"><b style="color:var(--green)">${money(s.amount)}</b></td>
-    <td>${esc(s.note||'')}</td>
-    <td><div class="actions"><button class="iconbtn" onclick="openSale('${s.id}')">编辑</button><button class="iconbtn" onclick="delSale('${s.id}')">删</button></div></td></tr>`).join('');
+  el.innerHTML=list.map(s=>`<div class="rec">
+    <div class="icon">🐟</div>
+    <div class="main">
+      <div class="title">${esc(s.species)}</div>
+      <div class="meta">${esc(s.date)} · ${fmt(s.price)}元/斤 × ${fmt(s.weight)}斤${s.note?' · '+esc(s.note):''}</div>
+    </div>
+    <div class="side">
+      <span class="amt" style="color:var(--green)">+${money(s.amount)}</span>
+      <button class="edit" onclick="openSale('${s.id}')">编辑</button>
+    </div>
+  </div>`).join('');
 }
 function openSale(id){
   const s=id?DB.sales.find(x=>x.id===id):null;
@@ -979,14 +1090,16 @@ function delSale(id){ if(!confirm('删除这条卖鱼记录？'))return; DB.sale
 
 /* ============ 员工 ============ */
 function renderStaff(){
-  const tb=document.getElementById('staffTable');
-  if(!DB.staff.length){ tb.innerHTML='<tr><td colspan="5" class="empty">暂无员工，点击「添加员工」。</td></tr>'; return; }
-  tb.innerHTML=DB.staff.map(s=>`<tr>
-    <td><b>${esc(s.name)}</b></td>
-    <td><span class="tag ${s.role==='船长'?'on':''}">${esc(s.role)}</span></td>
-    <td class="num">${money(s.monthlySalary)}</td>
-    <td>${esc(s.note||'')}</td>
-    <td><div class="actions"><button class="iconbtn" onclick="openStaff('${s.id}')">编辑</button><button class="iconbtn" onclick="delStaff('${s.id}')">删</button></div></td></tr>`).join('');
+  const el=document.getElementById('staffTable');
+  if(!DB.staff.length){ el.innerHTML='<div class="empty">暂无员工，点击上方「＋ 添加员工」。</div>'; return; }
+  el.innerHTML=DB.staff.map(s=>`<div class="rec">
+    <div class="icon">${s.role==='船长'?'🧭':'👤'}</div>
+    <div class="main">
+      <div class="title">${esc(s.name)} <span class="tag ${s.role==='船长'?'on':''}" style="font-size:10px;margin-left:4px">${esc(s.role)}</span></div>
+      <div class="meta">月薪 ${money(s.monthlySalary)}${s.note?' · '+esc(s.note):''}</div>
+    </div>
+    <div class="side"><button class="edit" onclick="openStaff('${s.id}')">编辑</button></div>
+  </div>`).join('');
 }
 function openStaff(id){
   const s=id?DB.staff.find(x=>x.id===id):null;
@@ -1018,15 +1131,21 @@ function renderAdvances(){
   if(vid) document.getElementById('advVoyageFilter').value=vid;
   let list=DB.advances.filter(a=>!vid||a.voyageId===vid);
   list.sort((a,b)=>b.date.localeCompare(a.date));
-  const tb=document.getElementById('advanceTable');
-  if(!list.length){ tb.innerHTML='<tr><td colspan="6" class="empty">暂无预支记录。</td></tr>'; return; }
+  const el=document.getElementById('advanceTable');
+  if(!list.length){ el.innerHTML='<div class="empty">暂无预支记录。</div>'; return; }
   const nm=id=>{const s=DB.staff.find(x=>x.id===id);return s?s.name:'—';};
   const vn=id=>{const v=DB.voyages.find(x=>x.id===id);return v?v.name:'—';};
-  tb.innerHTML=list.map(a=>`<tr>
-    <td>${esc(a.date)}</td><td><b>${esc(nm(a.staffId))}</b></td><td>${esc(vn(a.voyageId))}</td>
-    <td class="num"><b style="color:var(--amber)">${money(a.amount)}</b></td>
-    <td>${esc(a.note||'')}</td>
-    <td><div class="actions"><button class="iconbtn" onclick="openAdvance('${a.id}')">编辑</button><button class="iconbtn" onclick="delAdvance('${a.id}')">删</button></div></td></tr>`).join('');
+  el.innerHTML=list.map(a=>`<div class="rec">
+    <div class="icon">💸</div>
+    <div class="main">
+      <div class="title">${esc(nm(a.staffId))}</div>
+      <div class="meta">${esc(a.date)} · ${esc(vn(a.voyageId))}${a.note?' · '+esc(a.note):''}</div>
+    </div>
+    <div class="side">
+      <span class="amt" style="color:var(--amber)">${money(a.amount)}</span>
+      <button class="edit" onclick="openAdvance('${a.id}')">编辑</button>
+    </div>
+  </div>`).join('');
 }
 function openAdvance(id){
   const a=id?DB.advances.find(x=>x.id===id):null;
