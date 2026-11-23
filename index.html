@@ -105,10 +105,10 @@ tr:hover td{background:rgba(56,189,248,.04)}
 .bar-row .val{width:100px;text-align:right;font-variant-numeric:tabular-nums;flex-shrink:0}
 
 /* AI */
-.ai-box{background:linear-gradient(135deg,#1e293b,#16233a);border:1px solid var(--line);border-radius:14px;padding:20px}
-.ai-box h3{color:var(--accent2)}
-.ai-body{white-space:pre-wrap;font-size:14px;line-height:1.7;color:#cbd5e1}
-.ai-body b{color:var(--text)}
+.ai-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+.ai-box h3{color:var(--accent)}
+.ai-body{white-space:pre-wrap;font-size:14px;line-height:1.75;color:var(--text)}
+.ai-body b{color:var(--text);font-weight:700}
 .risk{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;margin:2px 4px 2px 0}
 .risk.low{background:rgba(52,211,153,.15);color:var(--green)}
 .risk.mid{background:rgba(251,191,36,.15);color:var(--amber)}
@@ -757,9 +757,13 @@ function renderOverview(){
   const vid = currentVoyageId();
   if(!vid){ 
     document.getElementById('kpis').innerHTML = '<div class="card empty" style="grid-column:1/-1">请先创建航期。</div>';
-    document.getElementById('barChart').innerHTML='';document.getElementById('donut').innerHTML='';
-    document.getElementById('donutLegend').innerHTML='';document.getElementById('speciesChart').innerHTML='';
-    document.getElementById('wageTableWrap').innerHTML='';document.getElementById('aiBody').textContent='请先创建航期。';
+    const ph = '<div class="empty" style="padding:18px 8px">暂无数据</div>';
+    document.getElementById('barChart').innerHTML=ph;
+    document.getElementById('donut').innerHTML='';
+    document.getElementById('donutLegend').innerHTML=ph;
+    document.getElementById('speciesChart').innerHTML=ph;
+    document.getElementById('wageTableWrap').innerHTML=ph;
+    document.getElementById('aiBody').textContent='请先创建航期。';
     return;
   }
   const d = voyageData(vid);
