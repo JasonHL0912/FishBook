@@ -158,10 +158,12 @@ tr:hover td{background:rgba(56,189,248,.04)}
 }
 
 /* ============ 移动端组件（iOS 风格） ============ */
-body{padding-bottom:calc(var(--tab-h) + var(--safe-b) + 16px)}
+body{padding-bottom:calc(var(--tab-h) + 70px + var(--safe-b) + 14px)}
+/* 底部品牌区：承接 Netlify 徽章（免费版无法隐藏，只能让位） */
+body::after{content:"";position:fixed;left:0;right:0;bottom:0;height:calc(70px + var(--safe-b));background:var(--panel);z-index:1;pointer-events:none}
 
 /* 底部 Tab Bar */
-.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;background:rgba(255,255,255,.94);backdrop-filter:blur(20px);border-top:1px solid var(--line);padding-bottom:var(--safe-b);height:calc(var(--tab-h) + var(--safe-b))}
+.tabbar{position:fixed;left:0;right:0;bottom:calc(70px + var(--safe-b));z-index:70;display:flex;background:rgba(255,255,255,.96);backdrop-filter:blur(20px);border-top:1px solid var(--line);height:var(--tab-h)}
 .tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:none;border:none;color:var(--muted);font-size:10px;padding:6px 0;min-height:44px}
 .tabbar button .ico{font-size:21px;line-height:1}
 .tabbar button.active{color:var(--accent);background:transparent}
